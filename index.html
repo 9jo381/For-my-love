@@ -1,0 +1,199 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>For You</title>
+<link href="https://fonts.googleapis.com/css2?family=Dancing+Script:wght@600&display=swap" rel="stylesheet">
+<style>
+  :root{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+  body{margin:0;min-height:100vh;background:linear-gradient(160deg,#f7a8b8,#fde3ea);font-family:sans-serif;color:#5b3a45}
+  h2,h3{font-family:'Dancing Script',cursive;color:#d6204f;margin:0 0 12px}
+  #lock{min-height:100vh;display:flex;align-items:center;justify-content:center}
+  .box{background:#fff;padding:28px 22px;border-radius:20px;text-align:center;width:80%;max-width:340px}
+  input{width:100%;padding:12px;border:2px solid #d6204f;border-radius:10px;font-size:1rem;box-sizing:border-box}
+  .go{margin-top:14px;background:#d6204f;color:#fff;border:none;border-radius:10px;padding:10px 28px;font-size:1rem}
+  #error{color:#d6204f}
+  #app{display:none;padding:16px;padding-bottom:160px}
+  .tabs{display:flex;gap:8px;overflow-x:auto;margin-bottom:14px}
+  .tabs button{background:#fff;border:none;border-radius:999px;padding:10px 16px;font-size:.9rem;white-space:nowrap}
+  .panel{display:none;background:#fff;border-radius:18px;padding:18px;line-height:1.7}
+  .item{background:#fbd5df;border-left:4px solid #d6204f;border-radius:8px;padding:10px 12px;margin-bottom:10px}
+  .song{cursor:pointer}
+  .player iframe{width:100%;height:200px;border:0;border-radius:10px;margin-top:10px}
+  .grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+  .tile{background:#fbd5df;border-radius:14px;font-size:3rem;text-align:center;padding:24px 0}
+  #typed{font-family:'Courier New',monospace;white-space:pre-wrap;min-height:260px;margin:0}
+  .tile{animation:sway 3s ease-in-out infinite}
+  .tile:nth-child(2){animation-delay:.4s}
+  .tile:nth-child(3){animation-delay:.8s}
+  .tile:nth-child(4){animation-delay:1.2s}
+  @keyframes sway{0%,100%{transform:rotate(-6deg) scale(1)}50%{transform:rotate(6deg) scale(1.12)}}
+  .fall{position:fixed;top:-40px;pointer-events:none;opacity:.7;animation:drop linear forwards}
+  @keyframes drop{to{transform:translateY(110vh) rotate(360deg)}}
+  #bg{display:none;position:fixed;left:12px;bottom:calc(12px + env(safe-area-inset-bottom,0px));width:220px;height:124px;border-radius:12px;overflow:hidden;background:#000;box-shadow:0 4px 12px rgba(0,0,0,.3);z-index:9}
+  #bg iframe{width:100%;height:100%;border:0}
+  #bgbtn{display:none;position:fixed;right:16px;bottom:calc(16px + env(safe-area-inset-bottom,0px));width:48px;height:48px;border-radius:50%;border:none;background:#d6204f;color:#fff;font-size:1.3rem;box-shadow:0 4px 12px rgba(0,0,0,.25);z-index:10}
+</style>
+</head>
+<body>
+<div id="lock"><div class="box">
+  <h2>Enter the secret code</h2>
+  <input id="code" type="password">
+  <p id="error"></p>
+  <button class="go" onclick="check()">Enter</button>
+</div></div>
+
+<div id="app">
+  <h2>Welcome my love 💕</h2>
+  <div class="tabs">
+    <button onclick="show('letter')">❤️ Love Letter</button>
+    <button onclick="show('music')">🎵 Music</button>
+    <button onclick="show('notes')">📝 Notes</button>
+    <button onclick="show('gallery')">🌷 Gallery</button>
+  </div>
+  <div class="panel" id="letter"><h3>A Letter For You</h3><p id="typed"></p></div>
+  <div class="panel" id="music">
+    <h3>Songs that remind me of you</h3>
+    <div id="songlist"></div>
+  </div>
+  <div class="panel" id="notes">
+    <h3>Some reminders</h3>
+    <div class="item">Take care always</div>
+    <div class="item">Pray, surrender it all to god</div>
+    <div class="item">Rest. You first before anything else.</div>
+  </div>
+  <div class="panel" id="gallery">
+    <h3>For you</h3>
+    <div class="grid"><div class="tile">🌷</div><div class="tile">🌸</div><div class="tile">🌹</div><div class="tile">💐</div></div>
+  </div>
+</div>
+
+<div id="bg"></div>
+<button id="bgbtn" onclick="toggleBg()">🔊</button>
+
+<script>
+  var message = "To my woman,\n\nI just want to remind you how amazing you are. I know how much effort you put into everything you do. Please don’t forget to rest and be kind to yourself. I’ll always be the happiest and proudest person with every achievement you reach, magamay man o dako. I’ll always be your number one supporter, today and always!💗\n\nForever yours,\nbotex🤪";
+
+  // 🎶 BACKGROUND MUSIC: blue (acoustic) by yung kai
+  var bgUrl = "https://youtu.be/4adZ7AguVcw";
+
+  // 🎵 MGA KANTA sa Music tab
+  var songs = [
+    { title: "Just the way you are", artist: "Bruno Mars", url: "https://youtu.be/_xqiutPBAKw" },
+    { title: "Statue", artist: "Lil Eddie", url: "https://youtu.be/cS9lEZrtAFw" }
+  ];
+
+  var timer;
+  var bgOn = false;
+
+  function videoId(url){
+    var m=url.match(/(?:v=|youtu\.be\/|embed\/)([\w-]{11})/);
+    return m?m[1]:"";
+  }
+
+  function startBg(){
+    var id=videoId(bgUrl);
+    if(!id)return;
+    var box=document.getElementById("bg");
+    box.innerHTML='<iframe src="https://www.youtube.com/embed/'+id+'?autoplay=1&loop=1&playlist='+id+'&playsinline=1" allow="autoplay; encrypted-media"></iframe>';
+    box.style.display="block";
+    bgOn=true;
+    var b=document.getElementById("bgbtn");
+    b.style.display="block";
+    b.textContent="🔊";
+  }
+
+  function stopBg(){
+    var box=document.getElementById("bg");
+    box.innerHTML="";
+    box.style.display="none";
+    bgOn=false;
+    document.getElementById("bgbtn").textContent="🔇";
+  }
+
+  function toggleBg(){
+    if(bgOn){stopBg()}else{stopAll();startBg()}
+  }
+
+  function typeLetter(){
+    clearInterval(timer);
+    var el=document.getElementById("typed");el.textContent="";
+    var chars=Array.from(message),i=0;
+    timer=setInterval(function(){el.textContent+=chars[i];i++;if(i>=chars.length)clearInterval(timer)},50);
+  }
+
+  function stopAll(){
+    var p=document.getElementsByClassName("player");
+    for(var i=0;i<p.length;i++)p[i].innerHTML="";
+  }
+
+  function playSong(i){
+    var box=document.getElementById("player"+i);
+    var wasPlaying=box.innerHTML!=="";
+    stopAll();
+    if(wasPlaying)return;
+    var id=videoId(songs[i].url);
+    if(id){
+      if(bgOn)stopBg();
+      box.innerHTML='<iframe src="https://www.youtube.com/embed/'+id+'?autoplay=1&playsinline=1" allow="autoplay; encrypted-media" allowfullscreen></iframe>';
+    }else{
+      window.open("https://www.youtube.com/results?search_query="+encodeURIComponent(songs[i].title+" "+songs[i].artist),"_blank");
+    }
+  }
+
+  function buildSongs(){
+    var list=document.getElementById("songlist");
+    list.innerHTML="";
+    songs.forEach(function(s,i){
+      var item=document.createElement("div");
+      item.className="item";
+      var head=document.createElement("div");
+      head.className="song";
+      head.innerHTML="🎵 "+s.title+"<br><small>by "+s.artist+" ▶</small>";
+      head.onclick=function(){playSong(i)};
+      var player=document.createElement("div");
+      player.className="player";
+      player.id="player"+i;
+      item.appendChild(head);
+      item.appendChild(player);
+      list.appendChild(item);
+    });
+  }
+  buildSongs();
+
+  function petals(){
+    var f=["🌷","🌸","🌹","💐"];
+    setInterval(function(){
+      var p=document.createElement("div");
+      p.className="fall";
+      p.textContent=f[Math.floor(Math.random()*f.length)];
+      p.style.left=Math.random()*95+"vw";
+      p.style.fontSize=(16+Math.random()*16)+"px";
+      p.style.animationDuration=(6+Math.random()*5)+"s";
+      document.body.appendChild(p);
+      setTimeout(function(){p.remove()},11000);
+    },900);
+  }
+
+  function check(){
+    var typed=document.getElementById("code").value;
+    if(typed==="iloveyou"){
+      document.getElementById("lock").style.display="none";
+      document.getElementById("app").style.display="block";
+      petals();
+      startBg();
+      show("letter");
+    }else{document.getElementById("error").textContent="Mali, subukan ulit"}
+  }
+
+  function show(id){
+    var p=document.getElementsByClassName("panel");
+    for(var i=0;i<p.length;i++)p[i].style.display="none";
+    document.getElementById(id).style.display="block";
+    if(id!=="music")stopAll();
+    if(id==="letter")typeLetter();
+  }
+</script>
+</body>
+</html>
